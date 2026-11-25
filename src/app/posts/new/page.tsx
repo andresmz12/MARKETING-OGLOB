@@ -11,7 +11,7 @@ export default async function NewPost() {
   ]);
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Nuevo post</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Nuevo post</h1>
       <PostForm companies={companies} campaigns={campaigns} />
     </div>
   );

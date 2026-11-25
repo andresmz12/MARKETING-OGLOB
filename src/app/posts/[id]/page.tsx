@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { visibleCompanies } from "@/lib/queries";
 import { PostForm } from "@/components/PostForm";
 import { StatusBadge } from "@/components/StatusBadge";
-import { platformLabel } from "@/lib/platforms";
+import { PlatformChip } from "@/components/PlatformChip";
 import { postAction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">{post.title}</h1><StatusBadge status={post.status} />
+        <h1 className="text-2xl font-bold tracking-tight">{post.title}</h1><StatusBadge status={post.status} />
       </div>
 
       {can.approve(user) && (
@@ -47,8 +47,8 @@ export default async function PostPage({ params }: { params: { id: string } }) {
           {post.targets.map((t) => {
             const m = t.metrics[0];
             return (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span className="w-28 font-medium">{platformLabel(t.platform)}</span>
+              <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
+                <span className="w-24"><PlatformChip platform={t.platform} full /></span>
                 <StatusBadge status={t.status} />
                 {t.externalUrl && <a className="text-indigo-600 hover:underline" href={t.externalUrl} target="_blank">Ver publicación</a>}
                 {t.error && <span className="text-red-600">{t.error}</span>}

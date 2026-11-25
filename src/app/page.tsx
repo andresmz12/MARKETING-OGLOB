@@ -1,10 +1,12 @@
 import { requireUser, companyWhere, companyScope } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { PLATFORMS, platformLabel } from "@/lib/platforms";
+import { PLATFORMS } from "@/lib/platforms";
+import { PlatformChip } from "@/components/PlatformChip";
 import type { Platform } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
-const fmt = (n: number) => n.toLocaleString("es");
+const nf = new Intl.NumberFormat("es", { useGrouping: "always" });
+const fmt = (n: number) => nf.format(n);
 
 export default async function Dashboard({ searchParams }: { searchParams: { company?: string } }) {
   const user = await requireUser();
@@ -31,7 +33,7 @@ export default async function Dashboard({ searchParams }: { searchParams: { comp
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Métricas</h1>
+        <div><h1 className="text-2xl font-bold tracking-tight">Métricas</h1><p className="text-sm text-gray-500">Resultados de lo publicado, actualizados por Make</p></div>
         <form className="flex gap-2">
           <select name="company" defaultValue={companyId ?? ""} className="input w-52">
             <option value="">Todas las empresas</option>
@@ -43,7 +45,7 @@ export default async function Dashboard({ searchParams }: { searchParams: { comp
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
         {([["Posts publicados", rows.length], ["Vistas", sum(rows, "views")], ["Alcance", sum(rows, "reach")], ["Likes", sum(rows, "likes")], ["Comentarios", sum(rows, "comments")], ["Clics", sum(rows, "clicks")]] as const).map(([label, v]) => (
-          <div key={label} className="card"><div className="label">{label}</div><div className="text-2xl font-semibold">{fmt(v)}</div></div>
+          <div key={label} className="card"><div className="label">{label}</div><div className="text-2xl font-bold tracking-tight">{fmt(v)}</div></div>
         ))}
       </div>
 
@@ -53,10 +55,10 @@ export default async function Dashboard({ searchParams }: { searchParams: { comp
           {byPlatform.map((p) => (
             <div key={p.id} className="flex items-center gap-3 text-sm">
               <span className="w-24">{p.label}</span>
-              <div className="h-5 flex-1 rounded bg-gray-100">
-                <div className="h-5 rounded" style={{ width: `${(p.views / maxViews) * 100}%`, background: p.color }} />
+              <div className="h-5 flex-1 rounded-full bg-gray-100">
+                <div className="h-5 rounded-full" style={{ width: `${(p.views / maxViews) * 100}%`, background: p.color }} />
               </div>
-              <span className="w-40 text-right text-gray-600">{fmt(p.views)} vistas · {p.posts} posts</span>
+              <span className="w-40 text-right text-gray-600">{fmt(p.views)} vistas · {p.posts} {p.posts === 1 ? "post" : "posts"}</span>
             </div>
           ))}
         </div>
@@ -73,7 +75,7 @@ export default async function Dashboard({ searchParams }: { searchParams: { comp
               {top.map(({ t, m }) => (
                 <tr key={t.id} className="border-t">
                   <td className="py-2"><a className="text-indigo-600 hover:underline" href={`/posts/${t.postId}`}>{t.post.title}</a></td>
-                  <td>{t.post.company.name}</td><td>{platformLabel(t.platform as Platform)}</td>
+                  <td><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: t.post.company.color }} />{t.post.company.name}</td><td><PlatformChip platform={t.platform as Platform} full /></td>
                   <td className="text-right">{fmt(m?.views ?? 0)}</td><td className="text-right">{fmt(m?.likes ?? 0)}</td><td className="text-right">{fmt(m?.clicks ?? 0)}</td>
                 </tr>
               ))}

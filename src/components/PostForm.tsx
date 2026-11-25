@@ -9,7 +9,7 @@ export function PostForm({ post, companies, campaigns, locked }: Props) {
   const selected = new Set<Platform>(post?.targets.map((t) => t.platform) ?? []);
   return (
     <form action={savePost} className="card space-y-4">
-      <fieldset disabled={locked} className="space-y-4">
+      <fieldset disabled={locked} className="m-0 min-w-0 space-y-4 border-0 p-0">
         {post && <input type="hidden" name="id" value={post.id} />}
         <div className="grid gap-4 md:grid-cols-3">
           <div><label className="label">Empresa</label>

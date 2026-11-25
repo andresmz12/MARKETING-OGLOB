@@ -18,7 +18,7 @@ export default async function Users() {
   );
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Usuarios</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
       <form action={createUser} className="card grid gap-3 md:grid-cols-4">
         <div><label className="label">Nombre</label><input name="name" required className="input" /></div>
         <div><label className="label">Correo</label><input name="email" type="email" required className="input" /></div>

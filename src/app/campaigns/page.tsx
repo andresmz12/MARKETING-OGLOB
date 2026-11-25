@@ -14,7 +14,7 @@ export default async function Campaigns() {
   ]);
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Campañas</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Campañas</h1>
       {can.approve(user) && (
         <form action={createCampaign} className="card grid gap-3 md:grid-cols-3">
           <div><label className="label">Empresa</label><select name="companyId" className="input">{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>

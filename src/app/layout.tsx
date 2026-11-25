@@ -1,5 +1,5 @@
 import "./globals.css";
-import Link from "next/link";
+import { NavLinks } from "@/components/NavLinks";
 import type { ReactNode } from "react";
 import { getUser, can } from "@/lib/auth";
 import { logout } from "./actions";
@@ -19,20 +19,19 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="es">
       <body>
         {user && (
-          <header className="border-b bg-white">
-            <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-              <span className="font-semibold">Marketing OGLOB</span>
-              <nav className="flex flex-1 gap-4 text-sm">
-                {links.map(([href, label]) => (
-                  <Link key={href} href={href} className="text-gray-600 hover:text-gray-900">{label}</Link>
-                ))}
-              </nav>
-              <span className="text-xs text-gray-500">{user.name} · {user.role}</span>
+          <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-6">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-sm font-bold text-white">O</span>
+                <span className="hidden font-semibold tracking-tight sm:block">Marketing OGLOB</span>
+              </div>
+              <NavLinks links={links} />
+              <span className="hidden text-xs text-gray-500 sm:block">{user.name} <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">{user.role}</span></span>
               <form action={logout}><button className="btn-ghost">Salir</button></form>
             </div>
           </header>
         )}
-        <main className="mx-auto max-w-6xl p-4">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
       </body>
     </html>
   );

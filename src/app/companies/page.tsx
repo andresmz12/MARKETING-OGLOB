@@ -7,7 +7,7 @@ export default async function Companies() {
   const companies = await db.company.findMany({ orderBy: { name: "asc" } });
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Empresas</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Empresas</h1>
       {companies.map((c) => (
         <form key={c.id} action={updateCompany} className="card flex items-end gap-3">
           <input type="hidden" name="id" value={c.id} />
