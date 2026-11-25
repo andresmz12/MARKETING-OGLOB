@@ -47,6 +47,7 @@ model User {
   createdAt    DateTime      @default(now())
   companies    UserCompany[]
   posts        Post[]        @relation("PostCreator")
+  comments     Comment[]
 }
 
 model Company {
@@ -101,6 +102,7 @@ model Post {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   targets     PostTarget[]
+  comments    Comment[]
 
   @@index([status, scheduledAt])
 }
@@ -137,4 +139,27 @@ model MetricSnapshot {
   clicks     Int        @default(0)
 
   @@index([targetId, capturedAt])
+}
+
+// Archivos subidos (flyers/videos). Se guardan en Postgres y se sirven en /api/media/<id>
+model Media {
+  id          String   @id @default(cuid())
+  filename    String
+  contentType String
+  size        Int
+  data        Bytes
+  createdAt   DateTime @default(now())
+}
+
+// Notas del equipo en cada post
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
 }

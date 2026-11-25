@@ -178,3 +178,40 @@ export async function updateCompany(f: FormData) {
   await db.company.update({ where: { id: s(f, "id") }, data: { name: s(f, "name"), color: s(f, "color") || "#6366f1" } });
   revalidatePath("/", "layout");
 }
+
+// ---------- Publicación manual, métricas manuales y notas ----------
+async function targetFor(f: FormData, min: "EDITOR" | "MANAGER") {
+  const user = await requireRole(min);
+  const target = await db.postTarget.findUniqueOrThrow({ where: { id: s(f, "targetId") }, include: { post: true } });
+  assertCompany(user, target.post.companyId);
+  return { user, target };
+}
+
+export async function markPublished(f: FormData) {
+  const { target } = await targetFor(f, "MANAGER");
+  await db.postTarget.update({
+    where: { id: target.id },
+    data: { status: "PUBLISHED", publishedAt: new Date(), externalUrl: s(f, "externalUrl") || target.externalUrl, error: null },
+  });
+  await rollupPost(target.postId);
+  revalidatePath("/", "layout");
+}
+
+export async function addMetrics(f: FormData) {
+  const { target } = await targetFor(f, "MANAGER");
+  if (target.status !== "PUBLISHED") throw new Error("Solo se cargan métricas de posts publicados");
+  const n = (k: string) => Math.max(0, parseInt(s(f, k) || "0", 10) || 0);
+  await db.metricSnapshot.create({
+    data: { targetId: target.id, views: n("views"), reach: n("reach"), likes: n("likes"), comments: n("comments"), shares: n("shares"), clicks: n("clicks") },
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function addComment(f: FormData) {
+  const user = await requireRole("EDITOR");
+  const post = await db.post.findUniqueOrThrow({ where: { id: s(f, "postId") } });
+  assertCompany(user, post.companyId);
+  const body = s(f, "body").slice(0, 2000);
+  if (body) await db.comment.create({ data: { postId: post.id, userId: user.id, body } });
+  revalidatePath(`/posts/${post.id}`);
+}

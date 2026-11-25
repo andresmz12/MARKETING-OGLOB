@@ -3,7 +3,7 @@ import { COOKIE, verifySession } from "@/lib/session";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/webhooks") || pathname.startsWith("/api/cron")) {
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/webhooks") || pathname.startsWith("/api/cron") || pathname.startsWith("/api/media")) {
     return NextResponse.next();
   }
   const uid = await verifySession(req.cookies.get(COOKIE)?.value);

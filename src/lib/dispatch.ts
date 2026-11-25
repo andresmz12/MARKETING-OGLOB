@@ -1,6 +1,7 @@
 import { db } from "./db";
 
 const MAX_ATTEMPTS = 3;
+const absolute = (u: string) => (u.startsWith("/") ? `${process.env.APP_URL ?? ""}${u}` : u);
 
 /**
  * Busca targets programados que ya les toca y los envía al webhook de Make.
@@ -41,7 +42,7 @@ export async function dispatchDue() {
           company: t.post.company.name,
           title: t.post.title,
           caption: t.post.caption,
-          mediaUrl: t.post.mediaUrl,
+          mediaUrl: absolute(t.post.mediaUrl),
           mediaType: t.post.mediaType,
           scheduledAt: t.post.scheduledAt,
           callbackUrl: `${process.env.APP_URL ?? ""}/api/webhooks/make/status`,

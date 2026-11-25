@@ -5,7 +5,7 @@ import { visibleCompanies } from "@/lib/queries";
 import { PostForm } from "@/components/PostForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PlatformChip } from "@/components/PlatformChip";
-import { postAction } from "@/app/actions";
+import { postAction, markPublished, addMetrics, addComment } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
   const user = await requireUser();
   const post = await db.post.findFirst({
     where: { id: params.id, ...companyWhere(user) },
-    include: { targets: { include: { metrics: { orderBy: { capturedAt: "desc" }, take: 1 } } } },
+    include: { targets: { include: { metrics: { orderBy: { capturedAt: "desc" }, take: 1 } } }, comments: { include: { user: true }, orderBy: { createdAt: "asc" } } },
   });
   if (!post) notFound();
   const [companies, campaigns] = await Promise.all([
@@ -53,13 +53,55 @@ export default async function PostPage({ params }: { params: { id: string } }) {
                 {t.externalUrl && <a className="text-indigo-600 hover:underline" href={t.externalUrl} target="_blank">Ver publicación</a>}
                 {t.error && <span className="text-red-600">{t.error}</span>}
                 {m && <span className="text-gray-600">{m.views} vistas · {m.likes} likes · {m.comments} coment. · {m.clicks} clics</span>}
+                {can.approve(user) && t.status !== "PUBLISHED" && t.status !== "PUBLISHING" && (
+                  <form action={markPublished} className="ml-auto flex gap-2">
+                    <input type="hidden" name="targetId" value={t.id} />
+                    <input name="externalUrl" placeholder="Link del post (opcional)" className="input w-52" />
+                    <button className="btn-ghost whitespace-nowrap">Marcar publicado</button>
+                  </form>
+                )}
+                {can.approve(user) && t.status === "PUBLISHED" && (
+                  <details className="w-full">
+                    <summary className="cursor-pointer text-xs font-medium text-indigo-600">Cargar métricas a mano</summary>
+                    <form action={addMetrics} className="mt-2 flex flex-wrap items-end gap-2">
+                      <input type="hidden" name="targetId" value={t.id} />
+                      {(["views", "reach", "likes", "comments", "shares", "clicks"] as const).map((k) => (
+                        <div key={k}><label className="label">{{ views: "Vistas", reach: "Alcance", likes: "Likes", comments: "Coment.", shares: "Compart.", clicks: "Clics" }[k]}</label><input name={k} type="number" min={0} defaultValue={m?.[k] ?? 0} className="input w-24" /></div>
+                      ))}
+                      <button className="btn">Guardar</button>
+                    </form>
+                  </details>
+                )}
               </li>
             );
           })}
         </ul>
       </section>
 
+      {post.mediaUrl && (
+        <div className="overflow-hidden rounded-xl border bg-gray-100 sm:w-72">
+          {post.mediaType === "VIDEO" ? <video src={post.mediaUrl} controls className="max-h-80 w-full" /> : /* eslint-disable-next-line @next/next/no-img-element */ <img src={post.mediaUrl} alt={post.title} className="max-h-80 w-full object-contain" />}
+        </div>
+      )}
+
       <PostForm post={post} companies={companies} campaigns={campaigns} locked={locked} />
+
+      <section className="card">
+        <h2 className="mb-3 font-medium">Notas del equipo</h2>
+        <ul className="space-y-3">
+          {post.comments.map((c) => (
+            <li key={c.id} className="text-sm"><b>{c.user.name}</b> <span className="text-xs text-gray-400">{c.createdAt.toLocaleString("es")}</span><p className="whitespace-pre-wrap text-gray-700">{c.body}</p></li>
+          ))}
+          {post.comments.length === 0 && <li className="text-sm text-gray-500">Sin notas todavía.</li>}
+        </ul>
+        {can.edit(user) && (
+          <form action={addComment} className="mt-3 flex gap-2">
+            <input type="hidden" name="postId" value={post.id} />
+            <input name="body" required placeholder="Escribe una nota (ajustes, aprobación, ideas…)" className="input" />
+            <button className="btn">Enviar</button>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

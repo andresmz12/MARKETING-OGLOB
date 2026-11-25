@@ -1,6 +1,7 @@
 import type { Campaign, Company, Platform, Post, PostTarget } from "@prisma/client";
 import { PLATFORMS } from "@/lib/platforms";
 import { LocalDateTime } from "./LocalDateTime";
+import { MediaField } from "./MediaField";
 import { savePost } from "@/app/actions";
 
 type Props = { post?: Post & { targets: PostTarget[] }; companies: Company[]; campaigns: Campaign[]; locked?: boolean };
@@ -20,11 +21,7 @@ export function PostForm({ post, companies, campaigns, locked }: Props) {
         </div>
         <div><label className="label">Título interno</label><input name="title" defaultValue={post?.title} required className="input" /></div>
         <div><label className="label">Texto / caption</label><textarea name="caption" defaultValue={post?.caption} rows={5} className="input" /></div>
-        <div className="grid gap-4 md:grid-cols-[1fr_160px]">
-          <div><label className="label">URL del flyer o video (pública)</label><input name="mediaUrl" defaultValue={post?.mediaUrl} placeholder="https://…" className="input" /></div>
-          <div><label className="label">Tipo</label>
-            <select name="mediaType" defaultValue={post?.mediaType ?? "IMAGE"} className="input"><option value="IMAGE">Imagen</option><option value="VIDEO">Video</option></select></div>
-        </div>
+        <MediaField defaultUrl={post?.mediaUrl} defaultType={post?.mediaType} />
         <div><label className="label">Publicar en</label>
           <div className="flex flex-wrap gap-4">
             {PLATFORMS.map((p) => (
