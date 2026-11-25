@@ -8,10 +8,18 @@ datasource db {
 }
 
 enum Role {
-  ADMIN    // todo, incluye usuarios
-  MANAGER  // campañas, aprobar y programar
-  EDITOR   // crea y edita borradores
-  VIEWER   // solo lectura
+  ADMIN // todo, incluye usuarios
+  MANAGER // campañas, aprobar y programar
+  EDITOR // crea y edita borradores
+  VIEWER // solo lectura
+  CLIENT // revisa: aprueba o pide cambios, comenta y ve métricas
+}
+
+enum ReviewStatus {
+  NONE
+  PENDING // enviado al cliente
+  APPROVED
+  CHANGES // el cliente pidió cambios
 }
 
 enum Platform {
@@ -22,9 +30,9 @@ enum Platform {
 }
 
 enum PostStatus {
-  DRAFT      // borrador
-  APPROVED   // aprobado, listo para programar
-  SCHEDULED  // se publicará automáticamente en scheduledAt
+  DRAFT // borrador
+  APPROVED // aprobado, listo para programar
+  SCHEDULED // se publicará automáticamente en scheduledAt
   PUBLISHING // enviado a Make, esperando respuesta
   PUBLISHED
   FAILED
@@ -71,53 +79,55 @@ model UserCompany {
 }
 
 model Campaign {
-  id          String         @id @default(cuid())
-  companyId   String
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String
-  theme       String         @default("")
-  objective   String         @default("")
-  budget      Decimal?       @db.Decimal(12, 2)
-  startDate   DateTime?
-  endDate     DateTime?
-  status      CampaignStatus @default(PLANNED)
-  createdAt   DateTime       @default(now())
-  posts       Post[]
+  id        String         @id @default(cuid())
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  theme     String         @default("")
+  objective String         @default("")
+  budget    Decimal?       @db.Decimal(12, 2)
+  startDate DateTime?
+  endDate   DateTime?
+  status    CampaignStatus @default(PLANNED)
+  createdAt DateTime       @default(now())
+  posts     Post[]
 }
 
 model Post {
-  id          String       @id @default(cuid())
-  companyId   String
-  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  campaignId  String?
-  campaign    Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  title       String
-  caption     String       @default("")
-  mediaUrl    String       @default("") // flyer / video (URL pública)
-  mediaType   String       @default("IMAGE") // IMAGE | VIDEO
-  scheduledAt DateTime?
-  status      PostStatus   @default(DRAFT)
-  createdById String
-  createdBy   User         @relation("PostCreator", fields: [createdById], references: [id])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  targets     PostTarget[]
-  comments    Comment[]
+  id           String       @id @default(cuid())
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaignId   String?
+  campaign     Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  title        String
+  caption      String       @default("")
+  mediaUrl     String       @default("") // flyer / video (URL pública)
+  mediaType    String       @default("IMAGE") // IMAGE | VIDEO
+  scheduledAt  DateTime?
+  status       PostStatus   @default(DRAFT)
+  clientReview ReviewStatus @default(NONE)
+  reviewedAt   DateTime?
+  createdById  String
+  createdBy    User         @relation("PostCreator", fields: [createdById], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  targets      PostTarget[]
+  comments     Comment[]
 
   @@index([status, scheduledAt])
 }
 
 // Un post se publica en N plataformas; cada una tiene su propio estado y métricas
 model PostTarget {
-  id          String     @id @default(cuid())
+  id          String           @id @default(cuid())
   postId      String
-  post        Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post        Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   platform    Platform
-  status      PostStatus @default(DRAFT)
+  status      PostStatus       @default(DRAFT)
   externalId  String?
   externalUrl String?
   error       String?
-  attempts    Int        @default(0)
+  attempts    Int              @default(0)
   publishedAt DateTime?
   metrics     MetricSnapshot[]
 

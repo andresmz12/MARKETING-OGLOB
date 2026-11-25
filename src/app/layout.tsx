@@ -1,4 +1,5 @@
 import "./globals.css";
+import Link from "next/link";
 import { NavLinks } from "@/components/NavLinks";
 import type { ReactNode } from "react";
 import { getUser, can } from "@/lib/auth";
@@ -13,6 +14,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     ["/calendar", "Calendario"],
     ["/posts", "Posts"],
     ["/campaigns", "Campañas"],
+    ...(user && (user.role === "CLIENT" || can.approve(user)) ? [["/review", "Revisión"]] : []),
     ...(user && can.admin(user) ? [["/users", "Usuarios"], ["/companies", "Empresas"]] : []),
   ];
   return (
@@ -26,7 +28,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <span className="hidden font-semibold tracking-tight sm:block">Marketing OGLOB</span>
               </div>
               <NavLinks links={links} />
-              <span className="hidden text-xs text-gray-500 sm:block">{user.name} <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">{user.role}</span></span>
+              <Link href="/account" className="hidden text-xs text-gray-500 hover:text-gray-900 sm:block">{user.name} <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">{user.role}</span></Link>
               <form action={logout}><button className="btn-ghost">Salir</button></form>
             </div>
           </header>

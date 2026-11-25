@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { createUser, updateUser } from "../actions";
 
 export const dynamic = "force-dynamic";
-const ROLES = [["ADMIN", "Admin (todo + usuarios)"], ["MANAGER", "Manager (aprueba y programa)"], ["EDITOR", "Editor (crea borradores)"], ["VIEWER", "Lector (solo ver)"]];
+const ROLES = [["ADMIN", "Admin (todo + usuarios)"], ["MANAGER", "Manager (aprueba y programa)"], ["EDITOR", "Editor (crea borradores)"], ["VIEWER", "Lector (solo ver)"], ["CLIENT", "Cliente (revisa y aprueba)"]];
 
 export default async function Users() {
   await requireRole("ADMIN");

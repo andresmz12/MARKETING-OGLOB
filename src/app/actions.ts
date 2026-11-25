@@ -9,6 +9,9 @@ import type { Platform, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { assertCompany, requireRole } from "@/lib/auth";
 import { COOKIE, signSession } from "@/lib/session";
+import { clearFails, isLocked, recordFail } from "@/lib/ratelimit";
+import { headers } from "next/headers";
+import { can, requireUser } from "@/lib/auth";
 import { rollupPost } from "@/lib/rollup";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -16,10 +19,16 @@ const PLATFORM_IDS: Platform[] = ["TIKTOK", "INSTAGRAM", "FACEBOOK", "LINKEDIN"]
 
 // ---------- Sesión ----------
 export async function login(_: unknown, f: FormData) {
-  const user = await db.user.findUnique({ where: { email: s(f, "email").toLowerCase() } });
+  const email = s(f, "email").toLowerCase();
+  const ip = headers().get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  const key = `${email}|${ip}`;
+  if (isLocked(key)) return { error: "Demasiados intentos. Espera 15 minutos e inténtalo de nuevo." };
+  const user = await db.user.findUnique({ where: { email } });
   if (!user || !user.active || !(await bcrypt.compare(s(f, "password"), user.passwordHash))) {
+    recordFail(key);
     return { error: "Correo o contraseña incorrectos" };
   }
+  clearFails(key);
   cookies().set(COOKIE, await signSession(user.id), {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 7,
   });
@@ -57,7 +66,7 @@ export async function savePost(f: FormData) {
     assertCompany(user, existing.companyId);
     if (existing.status === "PUBLISHING" || existing.status === "PUBLISHED") throw new Error("Ya se publicó; no se puede editar");
     // Cualquier edición vuelve a borrador: hay que re-aprobar
-    await db.post.update({ where: { id }, data: { ...data, status: "DRAFT" } });
+    await db.post.update({ where: { id }, data: { ...data, status: "DRAFT", clientReview: "NONE", reviewedAt: null } });
     await db.postTarget.deleteMany({ where: { postId: id, platform: { notIn: platforms } } });
     await db.postTarget.updateMany({ where: { postId: id }, data: { status: "DRAFT" } });
   } else {
@@ -135,7 +144,7 @@ export async function setCampaignStatus(f: FormData) {
 }
 
 // ---------- Usuarios y empresas (solo ADMIN) ----------
-const ROLES: Role[] = ["ADMIN", "MANAGER", "EDITOR", "VIEWER"];
+const ROLES: Role[] = ["ADMIN", "MANAGER", "EDITOR", "VIEWER", "CLIENT"];
 
 export async function createUser(f: FormData) {
   await requireRole("ADMIN");
@@ -208,10 +217,49 @@ export async function addMetrics(f: FormData) {
 }
 
 export async function addComment(f: FormData) {
-  const user = await requireRole("EDITOR");
+  const user = await requireUser();
+  if (!can.comment(user)) throw new Error("Sin permiso para comentar");
   const post = await db.post.findUniqueOrThrow({ where: { id: s(f, "postId") } });
   assertCompany(user, post.companyId);
   const body = s(f, "body").slice(0, 2000);
   if (body) await db.comment.create({ data: { postId: post.id, userId: user.id, body } });
   revalidatePath(`/posts/${post.id}`);
+}
+
+// ---------- Revisión del cliente ----------
+export async function requestReview(f: FormData) {
+  const user = await requireRole("EDITOR");
+  const post = await db.post.findUniqueOrThrow({ where: { id: s(f, "postId") } });
+  assertCompany(user, post.companyId);
+  if (post.status === "PUBLISHED" || post.status === "PUBLISHING") throw new Error("Ya se publicó");
+  await db.post.update({ where: { id: post.id }, data: { clientReview: "PENDING", reviewedAt: null } });
+  revalidatePath("/", "layout");
+}
+
+export async function reviewPost(f: FormData) {
+  const user = await requireUser();
+  if (!can.review(user)) throw new Error("Solo el cliente puede revisar");
+  const post = await db.post.findUniqueOrThrow({ where: { id: s(f, "postId") } });
+  assertCompany(user, post.companyId);
+  if (post.clientReview !== "PENDING") throw new Error("Este post no está pendiente de revisión");
+  const approve = s(f, "decision") === "approve";
+  const note = s(f, "note").slice(0, 2000);
+  if (!approve && !note) throw new Error("Cuéntanos qué hay que cambiar");
+  await db.post.update({ where: { id: post.id }, data: { clientReview: approve ? "APPROVED" : "CHANGES", reviewedAt: new Date() } });
+  if (note) await db.comment.create({ data: { postId: post.id, userId: user.id, body: `${approve ? "✅ Aprobado" : "✏️ Cambios solicitados"}: ${note}` } });
+  else await db.comment.create({ data: { postId: post.id, userId: user.id, body: "✅ Aprobado" } });
+  revalidatePath("/", "layout");
+  redirect("/review");
+}
+
+// ---------- Mi cuenta ----------
+export async function changePassword(_: unknown, f: FormData) {
+  const user = await requireUser();
+  const current = s(f, "current");
+  const next = s(f, "next");
+  if (!(await bcrypt.compare(current, user.passwordHash))) return { error: "La contraseña actual no es correcta" };
+  if (next.length < 8) return { error: "La nueva contraseña necesita al menos 8 caracteres" };
+  if (next !== s(f, "confirm")) return { error: "Las contraseñas nuevas no coinciden" };
+  await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(next, 10) } });
+  return { ok: "Contraseña actualizada" };
 }

@@ -5,7 +5,8 @@ import { visibleCompanies } from "@/lib/queries";
 import { PostForm } from "@/components/PostForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PlatformChip } from "@/components/PlatformChip";
-import { postAction, markPublished, addMetrics, addComment } from "@/app/actions";
+import { postAction, markPublished, addMetrics, addComment, requestReview, reviewPost } from "@/app/actions";
+import { ReviewBadge } from "@/components/ReviewBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{post.title}</h1><StatusBadge status={post.status} />
+        <h1 className="text-2xl font-bold tracking-tight">{post.title}</h1><StatusBadge status={post.status} /><ReviewBadge review={post.clientReview} />
       </div>
 
       {can.approve(user) && (
@@ -39,6 +40,22 @@ export default async function PostPage({ params }: { params: { id: string } }) {
           {post.status === "FAILED" && <Btn action="retry" label="Reintentar" />}
           {post.status !== "PUBLISHING" && <Btn action="delete" label="Eliminar" cls="btn-danger" />}
         </div>
+      )}
+
+      {can.edit(user) && post.status !== "PUBLISHED" && post.status !== "PUBLISHING" && (post.clientReview === "NONE" || post.clientReview === "CHANGES") && (
+        <form action={requestReview}><input type="hidden" name="postId" value={post.id} /><button className="btn-ghost">Enviar al cliente para revisión</button></form>
+      )}
+
+      {can.review(user) && post.clientReview === "PENDING" && (
+        <form action={reviewPost} className="card space-y-3 border-sky-200 bg-sky-50">
+          <h2 className="font-medium">Tu revisión</h2>
+          <input type="hidden" name="postId" value={post.id} />
+          <textarea name="note" rows={3} placeholder="Comentarios (obligatorio si pides cambios)" className="input" />
+          <div className="flex gap-2">
+            <button name="decision" value="approve" className="btn">Aprobar</button>
+            <button name="decision" value="changes" className="btn-danger">Pedir cambios</button>
+          </div>
+        </form>
       )}
 
       <section className="card">
@@ -84,7 +101,16 @@ export default async function PostPage({ params }: { params: { id: string } }) {
         </div>
       )}
 
-      <PostForm post={post} companies={companies} campaigns={campaigns} locked={locked} />
+      {user.role === "CLIENT" ? (
+        <section className="card space-y-2 text-sm">
+          <div className="label">Fecha de publicación</div>
+          <p>{post.scheduledAt ? post.scheduledAt.toLocaleString("es") : "Sin fecha todavía"}</p>
+          <div className="label">Texto</div>
+          <p className="whitespace-pre-wrap">{post.caption || "—"}</p>
+        </section>
+      ) : (
+        <PostForm post={post} companies={companies} campaigns={campaigns} locked={locked} />
+      )}
 
       <section className="card">
         <h2 className="mb-3 font-medium">Notas del equipo</h2>
@@ -94,7 +120,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
           ))}
           {post.comments.length === 0 && <li className="text-sm text-gray-500">Sin notas todavía.</li>}
         </ul>
-        {can.edit(user) && (
+        {can.comment(user) && (
           <form action={addComment} className="mt-3 flex gap-2">
             <input type="hidden" name="postId" value={post.id} />
             <input name="body" required placeholder="Escribe una nota (ajustes, aprobación, ideas…)" className="input" />

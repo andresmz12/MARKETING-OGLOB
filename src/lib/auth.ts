@@ -21,13 +21,15 @@ export async function requireUser(): Promise<SessionUser> {
 }
 
 // ---- Permisos por rol ----
-const rank: Record<Role, number> = { VIEWER: 0, EDITOR: 1, MANAGER: 2, ADMIN: 3 };
+const rank: Record<Role, number> = { VIEWER: 0, CLIENT: 0, EDITOR: 1, MANAGER: 2, ADMIN: 3 };
 export const atLeast = (u: { role: Role }, min: Role) => rank[u.role] >= rank[min];
 
 export const can = {
   edit: (u: { role: Role }) => atLeast(u, "EDITOR"),      // crear/editar borradores
   approve: (u: { role: Role }) => atLeast(u, "MANAGER"), // aprobar, programar, campañas
   admin: (u: { role: Role }) => atLeast(u, "ADMIN"),     // usuarios y empresas
+  comment: (u: { role: Role }) => atLeast(u, "EDITOR") || u.role === "CLIENT",
+  review: (u: { role: Role }) => u.role === "CLIENT" || u.role === "ADMIN", // aprobar/pedir cambios como cliente
 };
 
 export async function requireRole(min: Role): Promise<SessionUser> {
