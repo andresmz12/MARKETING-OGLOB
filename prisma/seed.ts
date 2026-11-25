@@ -12,9 +12,10 @@ async function main() {
     create: { email, name: "Admin", role: "ADMIN", passwordHash: await bcrypt.hash(password, 10) },
   });
   // Las 3 empresas del cliente: renómbralas desde la app (Empresas)
-  const colors = ["#6366f1", "#10b981", "#f59e0b"];
-  for (const [i, name] of ["Empresa 1", "Empresa 2", "Empresa 3"].entries()) {
-    await db.company.upsert({ where: { name }, update: {}, create: { name, color: colors[i] } });
+  // Solo si no hay ninguna: así no se recrean después de que las renombres
+  if ((await db.company.count()) === 0) {
+    const colors = ["#6366f1", "#10b981", "#f59e0b"];
+    await db.company.createMany({ data: ["Empresa 1", "Empresa 2", "Empresa 3"].map((name, i) => ({ name, color: colors[i] })) });
   }
   console.log("Seed listo:", email);
 }
