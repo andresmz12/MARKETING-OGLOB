@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN    // todo, incluye usuarios
+  MANAGER  // campañas, aprobar y programar
+  EDITOR   // crea y edita borradores
+  VIEWER   // solo lectura
+}
+
+enum Platform {
+  TIKTOK
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+}
+
+enum PostStatus {
+  DRAFT      // borrador
+  APPROVED   // aprobado, listo para programar
+  SCHEDULED  // se publicará automáticamente en scheduledAt
+  PUBLISHING // enviado a Make, esperando respuesta
+  PUBLISHED
+  FAILED
+}
+
+enum CampaignStatus {
+  PLANNED
+  ACTIVE
+  PAUSED
+  DONE
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  role         Role          @default(VIEWER)
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  companies    UserCompany[]
+  posts        Post[]        @relation("PostCreator")
+}
+
+model Company {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  color     String        @default("#6366f1")
+  createdAt DateTime      @default(now())
+  users     UserCompany[]
+  campaigns Campaign[]
+  posts     Post[]
+}
+
+// Qué empresas puede ver/editar un usuario (ADMIN ve todas siempre)
+model UserCompany {
+  userId    String
+  companyId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, companyId])
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  theme       String         @default("")
+  objective   String         @default("")
+  budget      Decimal?       @db.Decimal(12, 2)
+  startDate   DateTime?
+  endDate     DateTime?
+  status      CampaignStatus @default(PLANNED)
+  createdAt   DateTime       @default(now())
+  posts       Post[]
+}
+
+model Post {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaignId  String?
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  title       String
+  caption     String       @default("")
+  mediaUrl    String       @default("") // flyer / video (URL pública)
+  mediaType   String       @default("IMAGE") // IMAGE | VIDEO
+  scheduledAt DateTime?
+  status      PostStatus   @default(DRAFT)
+  createdById String
+  createdBy   User         @relation("PostCreator", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  targets     PostTarget[]
+
+  @@index([status, scheduledAt])
+}
+
+// Un post se publica en N plataformas; cada una tiene su propio estado y métricas
+model PostTarget {
+  id          String     @id @default(cuid())
+  postId      String
+  post        Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform    Platform
+  status      PostStatus @default(DRAFT)
+  externalId  String?
+  externalUrl String?
+  error       String?
+  attempts    Int        @default(0)
+  publishedAt DateTime?
+  metrics     MetricSnapshot[]
+
+  @@unique([postId, platform])
+  @@index([status])
+}
+
+// Foto de métricas en un momento dado (Make las envía periódicamente)
+model MetricSnapshot {
+  id         String     @id @default(cuid())
+  targetId   String
+  target     PostTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  capturedAt DateTime   @default(now())
+  views      Int        @default(0)
+  reach      Int        @default(0)
+  likes      Int        @default(0)
+  comments   Int        @default(0)
+  shares     Int        @default(0)
+  clicks     Int        @default(0)
+
+  @@index([targetId, capturedAt])
+}
